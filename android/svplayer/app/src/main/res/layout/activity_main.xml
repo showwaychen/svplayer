@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    >
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="url sample"
+        android:textAlignment="center"
+        android:gravity="center"
+        android:textSize="19sp"
+        android:layout_margin="5dp"
+        android:background="@drawable/border"
+        android:id="@+id/tv_urlsample"
+        />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="local file explorer"
+        android:textAlignment="center"
+        android:gravity="center"
+        android:textSize="19sp"
+        android:layout_margin="5dp"
+        android:background="@drawable/border"
+        android:id="@+id/tv_fileexplorer"
+        />
+
+
+</LinearLayout>
