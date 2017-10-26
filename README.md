@@ -1,6 +1,11 @@
 ### svplayer
 
 #  a android video player
+### My Build Environment
+- Android
+ - [NDK r12b]
+ - Android Studio 2.3.1
+ - Gradle 2.2.3
 ### Features
     cpu: ARMv7a
     video-output:  OpenGL ES 2.0

@@ -42,9 +42,12 @@ public class NativeRender implements GlRenderThread.GLRenderer {
 
     public void startRender(Surface surface)
     {
-        mSurface = surface;
-        mGlRenderThread = new GlRenderThread(mSurface, this);
-        mGlRenderThread.start();
+        if (mGlRenderThread == null)
+        {
+            mSurface = surface;
+            mGlRenderThread = new GlRenderThread(mSurface, this);
+            mGlRenderThread.start();
+        }
     }
     //native call
     public void requestRender()
@@ -61,15 +64,19 @@ public class NativeRender implements GlRenderThread.GLRenderer {
     }
 
     //native call
-    private int stopRendering()
+    public int stopRendering()
     {
+        mGlRenderThread.stopRender();
+        mGlRenderThread = null;
         return 0;
     }
 
     public  void destroyRender()
     {
         mGlRenderThread.stopRender();
-
+        mGlRenderThread = null;
+        nativeDestroy();
+        mNativeObject = 0;
     }
     @Override
     public void init() {
@@ -89,8 +96,6 @@ public class NativeRender implements GlRenderThread.GLRenderer {
     @Override
     public void deinit() {
         nativeRenderDeinit();
-        nativeDestroy();
-        mNativeObject = 0;
         mGlRenderThread = null;
         mSurface = null;
     }

@@ -10,7 +10,6 @@
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
-	//LLOGI("JNI_OnLoad KuPlay.");
 	JNIEnv *env = NULL;
 
 	SetJavaVM(vm);
@@ -50,8 +49,12 @@ static JNINativeMethod ls_nm[] = {
 		&CSVideoPlayerWrapJni::native_setAudioType) },
 		{ "nativeSetVideoRender", "(J)V", reinterpret_cast<void*>(
 		&CSVideoPlayerWrapJni::native_setVideoRender) },
+		{ "nativeIsPlaying", "()Z", reinterpret_cast<void*>(
+		&CSVideoPlayerWrapJni::native_IsPlaying) },
 		{ "nativeMuteAudio", "(Z)I", reinterpret_cast<void*>(
 		&CSVideoPlayerWrapJni::native_MuteAudio) },
+		{ "nativeCaptureImage", "(Ljava/lang/String;)I", reinterpret_cast<void*>(
+		&CSVideoPlayerWrapJni::nativt_CaptureImage) },
 		{ "nativeGetCurrentPositon", "()I", reinterpret_cast<void*>(
 		&CSVideoPlayerWrapJni::native_GetCurrentPosition) },
 		{ "nativeGetDuration", "()I", reinterpret_cast<void*>(
@@ -155,6 +158,16 @@ jint JNICALL CSVideoPlayerWrapJni::native_setVideoRender(JNIEnv* env, jobject th
 	return -1;
 }
 
+jboolean JNICALL CSVideoPlayerWrapJni::native_IsPlaying(JNIEnv *env, jobject thiz)
+{
+	CSVideoPlayerWrapJni *instance = GetInst(env, thiz);
+	if (instance != NULL)
+	{
+		return instance->m_svplayer->isPlaying();
+	}
+	return false;
+}
+
 void JNICALL CSVideoPlayerWrapJni::native_propertySetInt(JNIEnv *env, jobject thiz, jint key, jint value)
 {
 	CSVideoPlayerWrapJni *instance = GetInst(env, thiz);
@@ -202,6 +215,16 @@ jint JNICALL CSVideoPlayerWrapJni::native_GetDuration(JNIEnv *env, jobject thiz)
 		return instance->m_svplayer->GetDuration();
 	}
 	return 0;
+}
+
+jint JNICALL CSVideoPlayerWrapJni::nativt_CaptureImage(JNIEnv *env, jobject thiz, jstring path)
+{
+	CSVideoPlayerWrapJni *instance = GetInst(env, thiz);
+	if (instance != NULL)
+	{
+		return instance->m_svplayer->captureImage(env->GetStringUTFChars(path, JNI_FALSE));
+	}
+	return -1;
 }
 
 void JNICALL CSVideoPlayerWrapJni::native_Destroy(JNIEnv *env, jobject thiz)

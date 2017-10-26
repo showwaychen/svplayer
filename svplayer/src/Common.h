@@ -18,7 +18,7 @@ extern "C"
 #include"libavutil/time.h"
 }
 
-#define VERSION		"1.1"
+#define VERSION		"1.2"
 #define READ_TIMEOUT_LIMIT_US          (5 * 1000 * 1000)
 #define BITRATE_CALC_INTERVAL_US       (10 * 1000 * 1000)
 #define TIMER_INTERVAL_US              (300 * 1000)

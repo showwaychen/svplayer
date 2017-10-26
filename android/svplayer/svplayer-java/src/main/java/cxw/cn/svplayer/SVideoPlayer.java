@@ -22,9 +22,11 @@ public class SVideoPlayer {
     native int nativeGetState();
     native int nativeGetCurrentPositon();
     native int nativeGetDuration();
+    native boolean nativeIsPlaying();
 
     native  void nativeSetVideoRender(long render);
     native void nativeSetAudioPlayer(int ntype);
+    native  int nativeCaptureImage(String filepath);
     native void nativeDestroy();
 
 
@@ -111,6 +113,14 @@ public class SVideoPlayer {
         return nativeGetCurrentPositon();
     }
 
+    public boolean isPlaying()
+    {
+        return nativeIsPlaying();
+    }
+    public int captureImage(String filename)
+    {
+        return nativeCaptureImage(filename);
+    }
     public void destroyPlayer()
     {
         stopPlayer();

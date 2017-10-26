@@ -5,7 +5,7 @@ package cxw.cn.svplayer;
  */
 
 public class PlayerConstants {
-    public static final  String VersionCode = "1.1";
+    public static final  String VersionCode = "1.2";
     //proerty set key
     public static final int  KeySetIslive = 1;
 

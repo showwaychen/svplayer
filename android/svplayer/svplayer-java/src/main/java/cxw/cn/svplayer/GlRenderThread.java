@@ -309,7 +309,6 @@ public class GlRenderThread extends Thread {
         mEglSurface = EGL10.EGL_NO_SURFACE;
     }
     public void requestRender() {
-            Log.i(TAG, "requestRender");
         synchronized (mSyncToken) {
             mRequestRender = true;
             mSyncToken.notifyAll();

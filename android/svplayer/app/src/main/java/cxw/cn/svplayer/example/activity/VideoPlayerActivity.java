@@ -1,15 +1,23 @@
 package cxw.cn.svplayer.example.activity;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.net.Uri;
+import android.nfc.Tag;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.NonNull;
 import android.support.v4.app.NavUtils;
+import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.Window;
@@ -20,6 +28,7 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -29,10 +38,15 @@ import java.util.TimerTask;
 import java.util.logging.LogRecord;
 
 import cxw.cn.svplayer.CommonSetting;
+import cxw.cn.svplayer.IMediaPlayerControl;
 import cxw.cn.svplayer.PlayerConstants;
 import cxw.cn.svplayer.PlayerEventListener;
+import cxw.cn.svplayer.SMediaPlayer;
 import cxw.cn.svplayer.SVideoPlayer;
 import cxw.cn.svplayer.example.R;
+import cxw.cn.svplayer.example.dialog.ImageViewDialog;
+import cxw.cn.svplayer.example.widget.IRenderView;
+import cxw.cn.svplayer.example.widget.MediaPlayerControlView;
 import cxw.cn.svplayer.example.widget.SurfaceViewRender;
 import cxw.cn.svplayer.example.widget.TextureViewRender;
 
@@ -40,36 +54,22 @@ import cxw.cn.svplayer.example.widget.TextureViewRender;
  * Created by cxw on 2017/10/2.
  */
 
-public class VideoPlayerActivity extends AppCompatActivity implements View.OnClickListener, SeekBar.OnSeekBarChangeListener,PlayerEventListener {
+public class VideoPlayerActivity extends AppCompatActivity implements View.OnClickListener,PlayerEventListener ,IMediaPlayerControl, IRenderView.IRenderCallback{
 
+    static String TAG = VideoPlayerActivity.class.getCanonicalName();
     FrameLayout mVideoLayout = null;
     FrameLayout mfl_VideoParent = null;
-    SurfaceViewRender mSfvRender = null;
-    TextureViewRender mTVRender = null;
-    SVideoPlayer mPlayer = null;
-    ImageView miv_Pause = null;
-    Button mbtn_FullScreen = null;
-    SeekBar msb_Seeking = null;
-    TextView mtv_CurTime = null;
-    TextView mtv_TotalTime = null;
-    TextView mtv_playinfo = null;
+    IRenderView mRenderView = null;
+    SMediaPlayer mPlayer = null;
     public static final String ARG_URL = "url";
     String mPlayUrl = null;
+    MediaPlayerControlView mMediaControlView = null;
 
-    Handler mHandler = null;
-    Timer mTimer = new Timer();
-    TimerTask mTimerTask = null;
     public static void active(Context context, String url)
     {
         Intent intent = new Intent(context, VideoPlayerActivity.class);
         intent.putExtra(ARG_URL, url);
         context.startActivity(intent);
-    }
-    boolean isLandscapeScreen()
-    {
-        Configuration mConfiguration = this.getResources().getConfiguration();
-        int ori = mConfiguration.orientation;
-        return (ori == Configuration.ORIENTATION_LANDSCAPE)?true:false;
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,7 +77,17 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_videopaly);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mPlayUrl = getIntent().getStringExtra(ARG_URL);
+        Intent intent = getIntent();
+        String action = intent.getAction();
+        if (intent.ACTION_VIEW.equals(action))
+        {
+            mPlayUrl = intent.getDataString();
+            Log.d(TAG, "view action url = "+ mPlayUrl);
+        }
+        else
+        {
+            mPlayUrl = getIntent().getStringExtra(ARG_URL);
+        }
         initView();
         initPlayer();
     }
@@ -94,15 +104,15 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
         {
             return ;
         }
+        mMediaControlView.setMediaControler(null);
+
         if (isFinishing())
         {
+            mRenderView.removeRenderCallback(this);
             mDestroy = true;
-            mHandler.removeMessages(0);
-            SVideoPlayer tmpplay = mPlayer;
+            SMediaPlayer tmpplay = mPlayer;
             mPlayer = null;
             tmpplay.destroyPlayer();
-            mSfvRender = null;
-            mTVRender = null;
         }
         else
         {
@@ -117,74 +127,42 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
         {
             return ;
         }
+        mMediaControlView.setMediaControler(this);
         mPlayer.resumePlayer();
     }
     void initView()
     {
         mVideoLayout = (FrameLayout) findViewById(R.id.videoFrameLayout);
         mfl_VideoParent = (FrameLayout)findViewById(R.id.fl_videoparent);
-        miv_Pause = (ImageView) findViewById(R.id.btnPause);
-        miv_Pause.setOnClickListener(this);
-        mbtn_FullScreen = (Button) findViewById(R.id.btn_fullscreen);
-        mbtn_FullScreen.setOnClickListener(this);
-        msb_Seeking = (SeekBar)findViewById(R.id.seekBar);
-        msb_Seeking.setMax(0);
-        msb_Seeking.setProgress(0);
-        msb_Seeking.setEnabled(false);
-        msb_Seeking.setOnSeekBarChangeListener(this);
-
-
-        mtv_CurTime = (TextView)findViewById(R.id.tv_curTime);
-        mtv_TotalTime = (TextView)findViewById(R.id.tv_totalTime);
-
-        mtv_playinfo = (TextView)findViewById(R.id.tv_playinfo);
-
+        mMediaControlView = (MediaPlayerControlView)findViewById(R.id.vw_mediacontrol);
+        mMediaControlView.setMediaControler(this);
+    }
+    IRenderView createRenderView(int type)
+    {
+        if (type == 1)
+        {
+            return new SurfaceViewRender(this);
+        }
+        else if (type == 2)
+        {
+            return new TextureViewRender(this);
+        }
+        return null;
     }
     void initPlayer()
     {
         CommonSetting.nativeToggleFFmpegLog(true);
         CommonSetting.nativeSetLogLevel(PlayerConstants.LS_SENSITIVE);
-
-        mSfvRender = new SurfaceViewRender(this);
-        mVideoLayout.addView(mSfvRender);
-//        mTVRender = new TextureViewRender(this);
-//        mVideoLayout.addView(mTVRender);
-        mPlayer = new SVideoPlayer();
+        mRenderView = createRenderView(2);
+        mRenderView.addRenderCallback(this);
+        mVideoLayout.addView(mRenderView.getView());
+        mPlayer = new SMediaPlayer();
         mPlayer.setEventlisten(this);
-        mPlayer.setRender(mSfvRender.getNativeRender());
         mPlayer.setUrl(mPlayUrl);
-        mPlayer.startPlayer();
-//
         mPlayer.setAudioPlayerType(PlayerConstants.AudioPlayType_AudioTrack);
-
-        mHandler = new Handler() {
-            @Override
-            public void handleMessage(Message msg)
-            {
-                if (mPlayer != null)
-                {
-                    int curposition = mPlayer.getCurrentPosition();
-                    msb_Seeking.setProgress(curposition);
-                    mtv_CurTime.setText(secToString(curposition));
-                    mHandler.sendEmptyMessageDelayed(0, 1000);
-                }
-
-            }
-        };
+        mPlayer.startPlayer();
     }
-    void OnMax()
-    {
-        if (!isLandscapeScreen())
-        {
-            mbtn_FullScreen.setBackgroundResource(R.drawable.video_zoom_icon);
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        }
-        else
-        {
-            mbtn_FullScreen.setBackgroundResource(R.drawable.video_full_screen);
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }
-    }
+
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
 //
@@ -209,119 +187,111 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
     boolean m_Pause = false;
     @Override
     public void onClick(View view) {
-        int vid = view.getId();
-        if (vid == R.id.btnPause)
-        {
-            if (mPlayer == null)
-            {
-                return ;
-            }
-            m_Pause = !m_Pause;
-             miv_Pause.setImageResource(m_Pause?R.drawable.play_btn:R.drawable.pause_btn);
-            if (m_Pause)
-            {
-                mPlayer.pausePlayer();
-            }
-            else
-            {
-                mPlayer.resumePlayer();
-            }
-//            if ()
-//            mPlayer.startPlayer();
-//            mPlayer.muteAudio(true);
-
-        }
-        else if (vid == R.id.btn_fullscreen)
-        {
-            OnMax();
-//            mPlayer.muteAudio(false);
-        }
-    }
-    static String secToString(float second) {
-
-        long millis = (long)(second * 1000);
-        boolean negative = millis < 0;
-        millis = java.lang.Math.abs(millis);
-
-        millis /= 1000;
-        int sec = (int) (millis % 60);
-        millis /= 60;
-        int min = (int) (millis % 60);
-        millis /= 60;
-        int hours = (int) millis;
-
-        String time;
-        DecimalFormat format = (DecimalFormat) NumberFormat.getInstance(Locale.US);
-        format.applyPattern("00");
-
-        if (millis > 0) {
-            time = (negative ? "-" : "") + hours + ":" + format.format(min) + ":" + format.format(sec);
-        } else {
-            time = (negative ? "-" : "") + min + ":" + format.format(sec);
-        }
-
-        return time;
-    }
-    @Override
-    public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
 
     }
+
 
     @Override
-    public void onStartTrackingTouch(SeekBar seekBar) {
-
-    }
-
-    @Override
-    public void onStopTrackingTouch(SeekBar seekBar) {
-        int seekseconds = seekBar.getProgress();
-        mPlayer.seekPlayer(seekseconds);
-        mtv_CurTime.setText(secToString(seekseconds));
-    }
-
-    @Override
-    public void onPlayerEvent(final int eventid, long resdata) {
+    public void onPlayerEvent(final int eventid, final long resdata) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                if (eventid == PlayerConstants.PE_ReadyToPlay)
+                if (eventid == PlayerConstants.PE_Snapshot_Sus)
                 {
-                    mtv_playinfo.setText("准备开始播放");
-                    msb_Seeking.setEnabled(true);
-                    msb_Seeking.setMax(mPlayer.getDuration());
-                    mtv_TotalTime.setText(secToString(mPlayer.getDuration()));
-                    mHandler.sendEmptyMessageDelayed(0, 1000);
+                    ImageViewDialog display = new ImageViewDialog(VideoPlayerActivity.this, R.style.dialog);
+                    display.setImagePath(mCaptureFilename);
+                    display.setCanceledOnTouchOutside(true);//设置点击Dialog外部任意区域关闭Dialog
+                    display.show();
+                    Toast.makeText(VideoPlayerActivity.this, "截图成功", Toast.LENGTH_SHORT).show();
+                }
+                else if (eventid == PlayerConstants.PE_Snapshot_Fail)
+                {
+                    Toast.makeText(VideoPlayerActivity.this, "截图失败", Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    mMediaControlView.recivePlayerEvent(eventid, resdata);
+                }
 
-                }
-                else if(eventid == PlayerConstants.PE_Opening)
-                {
-                    mtv_playinfo.setText("打开中..");
-                }
-                else if (eventid == PlayerConstants.PE_OpenedError)
-                {
-                    mtv_playinfo.setText("打开失败");
-                }
-                else if (eventid == PlayerConstants.PE_PlayError)
-                {
-                    mtv_playinfo.setText("播放出错");
-                }
-                else if (eventid == PlayerConstants.PE_PlaySeekFailed)
-                {
-                    mtv_playinfo.setText("定位失败");
-                }
-                else if (eventid == PlayerConstants.PE_SeekFinished)
-                {
-                    mtv_playinfo.setText("定位成功");
-                }
-                else if (eventid == PlayerConstants.PE_Playing)
-                {
-                    mtv_playinfo.setText("");
-                }
-                else if (eventid == PlayerConstants.PE_StopWithEof)
-                {
-                    mtv_playinfo.setText("播放结束");
-                }
             }
         });
+    }
+
+    @Override
+    public int start() {
+        return mPlayer.startPlayer();
+    }
+
+    @Override
+    public int pause() {
+        return mPlayer.pausePlayer();
+    }
+
+    @Override
+    public int resume() {
+        return mPlayer.resumePlayer();
+    }
+
+    String mCaptureFilename;
+    @Override
+    public int captureImage() {
+        mCaptureFilename = Environment.getExternalStorageDirectory() + "/svplayercapture.jpg";
+        return mPlayer.captureImage(mCaptureFilename);
+    }
+
+    @Override
+    public int getDuration() {
+        if (mPlayer != null)
+        {
+            return mPlayer.getDuration();
+        }
+        return 0;
+    }
+
+    @Override
+    public int getCurrentPosition()
+    {
+        if (mPlayer != null)
+        return mPlayer.getCurrentPosition();
+        return 0;
+    }
+
+    @Override
+    public void seekTo(int pos) {
+        mPlayer.seekPlayer(pos);
+    }
+
+    @Override
+    public boolean isPlaying() {
+        boolean isplaying = mPlayer.isPlaying();
+        return isplaying;
+    }
+
+    @Override
+    public boolean canPause() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeek() {
+        return true;
+    }
+
+    @Override
+    public void onSurfaceCreated(@NonNull IRenderView.ISurfaceHolder holder, int width, int height) {
+        mPlayer.setDisplay(holder.getSurface());
+    }
+
+    @Override
+    public void onSurfaceChanged(@NonNull IRenderView.ISurfaceHolder holder, int width, int height) {
+        mPlayer.resizeDisplay(width, height);
+    }
+
+    @Override
+    public void onSurfaceDestroyed(@NonNull IRenderView.ISurfaceHolder holder) {
+        if (mPlayer != null)
+        {
+            mPlayer.setDisplay(null);
+        }
     }
 }

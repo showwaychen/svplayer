@@ -155,7 +155,8 @@ class CSVPlayer
 	//audio 
 	int m_muted = false;
 	//
-
+	bool m_NeedSaveToFile = false;
+	std::string m_CaptureFilename;
 
 	rtc::CriticalSection m_prender_cs;
 	VideoRenderBase *m_vrender = nullptr;
@@ -193,7 +194,7 @@ class CSVPlayer
 
 	static void ffmpeglog_callback(void* avcl, int level, const char* pFormat, va_list vl);
 	static int play_interrupt_cb(void *arg);
-	
+	static int SaveToFile(AVFrame *frame, const std::string &filename);
 
 	double get_master_clock();
 	double synchronize_video(AVFrame *src_frame, double pts);
@@ -226,7 +227,7 @@ public:
 	int seekPlayer(int seconds);
 	int stopPlayer();
 	int resetPlayer();
-	int captureImage();
+	int captureImage(const std::string& imagepath);
 	int speedPlayer(SPEED_RATIO speedratio);
 	int muteAudio(bool ismute);
 
@@ -239,6 +240,7 @@ public:
 	{
 		if (m_state < kStateBuffering || (m_state < kStateRecording && m_state >= kStateReconnecting))
 		{
+			LOGW << "not in playing current state = "<<m_state;
 			return false;
 		}
 		return true;

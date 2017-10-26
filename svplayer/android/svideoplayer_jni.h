@@ -36,12 +36,13 @@ public:
 	static jint JNICALL native_seek(JNIEnv *env, jobject thiz, jint seconds);
 	static jint JNICALL native_setAudioType(JNIEnv* env, jobject thiz, jint type);
 	static jint JNICALL native_setVideoRender(JNIEnv* env, jobject thiz, jlong type);
-	//static jint JNICALL native_destroy(JNIEnv *env, jobject thiz);
+	static jboolean JNICALL native_IsPlaying(JNIEnv *env, jobject thiz);
 	static void JNICALL native_propertySetInt(JNIEnv *env, jobject thiz, jint key, jint value);
 	static jint JNICALL native_getState(JNIEnv *env, jobject thiz);
 	static jint JNICALL native_MuteAudio(JNIEnv *env, jobject thiz, jboolean bMute);
 	static jint JNICALL native_GetCurrentPosition(JNIEnv *env, jobject thiz);
 	static jint JNICALL native_GetDuration(JNIEnv *env, jobject thiz);
+	static jint JNICALL nativt_CaptureImage(JNIEnv *env, jobject thiz, jstring path);
 	static void JNICALL native_Destroy(JNIEnv *env, jobject thiz);
 
 

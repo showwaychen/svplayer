@@ -76,7 +76,7 @@ connect:
 	m_timeout = false;
 	while (1) {
 		if (m_abort || !isPlaying()) {
-			LOGI << "stream read thread check abort, abort:%d, state:%d"<< m_abort<< m_state;
+			LOGI << "stream read thread check abort, abort: , state: "<< m_abort<< m_state;
 			break;
 		}
 		if (m_seek_request) {
@@ -238,7 +238,6 @@ connect:
 
 				int total_video = (m_video_ok && !m_video_disable) ? m_min_buffer_frames : 0;
 				int total_audio = (m_audio_ok && !m_audio_disable) ? m_min_buffer_frames : 0;
-				//LOGD("nb_video:%d nv_audio:%d total_video:%d total_audio:%d", nb_video, nb_audio, total_audio, total_video);
 				//int percent = (nb_audio + nb_video) * 100 / (total_audio + total_video);
 				setState(kStateBuffering, kErrorNone);
 				NotifyEvent(PE_Buffering);
@@ -308,7 +307,7 @@ reconnect:
 fail:
 	StopWaitClean();
 end:
-	LOGD<<"stream read thread e, pid:%lu, tid : %lu"<< (unsigned long)getpid()<< (unsigned long)pthread_self();
+	LOGD<<"stream read thread e, pid:  , tid : "<< (unsigned long)getpid()<< (unsigned long)pthread_self();
    return  false;
 }
 
@@ -407,10 +406,7 @@ bool CSVPlayer::onVideoDecode()
 			continue;
 		}
 
-		//LOGD("video decode step 1, get packet, pts:%lf", pkt.pts * av_q2d(ctx->video_stream->time_base));
-		//LOGD("decode a video %d %d %d %d %d", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4]);
 		ret = avcodec_decode_video2(m_video_ctx, frame, &got_frame, &pkt);
-		//LOGD("frame headers: %d %d %d %d %d ret:%d", pkt.data[0], pkt.data[1], pkt.data[2], pkt.data[3], pkt.data[4], ret);
 		if (ret > 0 && got_frame) {
 
 
@@ -427,7 +423,18 @@ bool CSVPlayer::onVideoDecode()
 				break;
 			}
 
-
+			if (m_NeedSaveToFile)
+			{
+				if (0 == SaveToFile(frame, m_CaptureFilename))
+				{
+					NotifyEvent(PE_Snapshot_Sus);
+				}
+				else
+				{
+					NotifyEvent(PE_Snapshot_Fail);
+				}
+				m_NeedSaveToFile = false;
+			}
 			if (-1 == reorder_pts) {
 				pts = (double)av_frame_get_best_effort_timestamp(frame);
 				LOGD<<"video pts:"<< pts;
@@ -645,7 +652,7 @@ bool CSVPlayer::onAudioDecode()
 			len1 = avcodec_decode_audio4(m_audio_ctx, frame, &got_frame, &pkt);
 
 			if (len1 < 0) {
-				LOGD<<"audio decode failed, get another packet, len1:%d"<< len1;
+				LOGD<<"audio decode failed, get another packet, len1: "<< len1;
 				break;
 			}
 
@@ -741,7 +748,7 @@ bool CSVPlayer::onAudioDecode()
 
 
 					if (len2 < 0) {
-						LOGE << "swr_convert() failed, len2:%d" << len2;
+						LOGE << "swr_convert() failed, len2:  " << len2;
 						error = kErrorUnknown;
 						goto fail;
 					}
@@ -760,12 +767,11 @@ bool CSVPlayer::onAudioDecode()
 
 				if (!m_islive) {
 					ref_pts = get_master_clock();
-					//LOGD("reference pts:%lf, audio pts:%lf", ref_pts, pts);
 					diff = pts - ref_pts;
 					delay = 0;
 					if (fabs(diff) >= AUDIO_SYNC_THRESHOLD_S) {
 						if (pts > ref_pts) {
-							LOGD << "audio clock is far ahead, diff:%lf" << diff;
+							LOGD << "audio clock is far ahead, diff:  " << diff;
 							m_audio_clock = pts;
 							delay = diff;
 							ret = playSleep(delay);
@@ -830,7 +836,7 @@ end:
 	m_audiopktq.SetEnable(false);
 	av_free_packet(&pkt);
 	av_frame_free(&frame);
-	LOGD<<"audio decode thread e, pid:%lu, tid:%lu"<< (unsigned long)getpid()<< (unsigned long)pthread_self();
+	LOGD<<"audio decode thread e, pid: , tid: "<< (unsigned long)getpid()<< (unsigned long)pthread_self();
 	return false;
 }
 
@@ -867,7 +873,7 @@ bool CSVPlayer::onVideoRender()
 	while (1) {
 
 		if (m_abort || !isPlaying()) {
-			LOGI << "video refresh thread check abort, abort:%d, state:%d" << m_abort << m_state;
+			LOGI << "video refresh thread check abort, abort: , state: " << m_abort << m_state;
 			break;
 		}
 
@@ -906,11 +912,11 @@ bool CSVPlayer::onVideoRender()
 		}
 
 		delay = pts - last_pts;
-		LOGD << "delay:%lf, last_delay:%lf pts:%lf" << delay << last_delay << pts;
+		LOGD << "delay: , last_delay:  pts: " << delay << last_delay << pts;
 		if (delay <= 0 || delay >= 1.0) {
 			delay = last_delay;
 		}
-		LOGD << "delay:%lf" << delay;
+		LOGD << "delay:  " << delay;
 		actual_delay = last_delay = delay;
 		last_pts = pts;
 
@@ -920,7 +926,7 @@ bool CSVPlayer::onVideoRender()
 			diff = pts - ref_pts;
 			LOGD << "diff: " << diff;
 			sync_threshold = (delay > AV_SYNC_THRESHOLD_S) ? delay : AV_SYNC_THRESHOLD_S;
-			LOGD << "pts:%lf, ref pts:%lf, sync_threshold:%lf" << pts << ref_pts << sync_threshold;
+			LOGD << "pts: , ref pts:  , sync_threshold:  " << pts << ref_pts << sync_threshold;
 			//这里计算最终的延时播放时间，也就是delay的值
 			if (fabs(diff) < AV_NOSYNC_THRESHOLD_S) {
 
@@ -985,7 +991,6 @@ bool CSVPlayer::onVideoRender()
 
 	m_videoframeq.SetEnable(false);
 	av_freep(&buf);
-	//LOGD("video refresh thread e, pid:%lu, tid : %lu", (unsigned long)getpid(), (unsigned long)pthread_self());
 	return false;
 }
 
@@ -1115,7 +1120,7 @@ int CSVPlayer::findStreamInfo()
 		LOGE<<"avformat_find_stream_info failed";
 		return AVERROR(kErrorStreamInfoNotFound);
 	}
-	LOGD<<"nb_streams:%d"<< m_fmt_ctx->nb_streams;
+	LOGD<<"nb_streams: "<< m_fmt_ctx->nb_streams;
 
 	m_duration = (float)(m_fmt_ctx->duration / 1000000LL);
 	m_duration = (m_duration < 0.0) ? 0.0 : m_duration;
@@ -1190,14 +1195,14 @@ int CSVPlayer::openStreams()
 
 int CSVPlayer::stream_component_open(int stream_index)
 {
-	LOGD<<"stream_component_open s, index:%d"<< stream_index;
+	LOGD<<"stream_component_open s, index:  "<< stream_index;
 
 	AVStream *stream = m_fmt_ctx->streams[stream_index];
 	AVCodecContext *codec_ctx = stream->codec;
 	AVCodec *codec = NULL;
 
 	if (!(codec = avcodec_find_decoder(codec_ctx->codec_id))) {
-		LOGE << "could not find decoder, name:%s" << avcodec_get_name(codec_ctx->codec_id);
+		LOGE << "could not find decoder, name:  " << avcodec_get_name(codec_ctx->codec_id);
 		return AVERROR(kErrorCodecNotFound);
 	}
 
@@ -1277,7 +1282,7 @@ int CSVPlayer::stream_component_open(int stream_index)
 		break;
 	}
 
-	LOGD<<"stream_component_open e, stream index:%d"<< stream_index;
+	LOGD<<"stream_component_open e, stream index: "<< stream_index;
 	return kErrorNone;
 }
 
@@ -1353,6 +1358,126 @@ int CSVPlayer::play_interrupt_cb(void *arg)
 	return 0;
 }
 
+int CSVPlayer::SaveToFile(AVFrame *frame, const std::string &filename)
+{
+	AVOutputFormat* pof = av_oformat_next(NULL);
+	while (pof != NULL)
+	{
+		LOGI << "out format = " << pof->name<<" extensions = "<<pof->extensions;
+		pof = av_oformat_next(pof);
+	}
+	
+	LOGI << "SaveToFile start";
+	int ret = 0;
+	//确保图像是AV_PIX_FMT_YUV420P
+	AVFormatContext* pFormatCtx = NULL;
+	AVOutputFormat* fmt = NULL;
+	AVStream* video_st = NULL;
+	AVCodecContext* pCodecCtx = NULL;
+	AVCodec* pCodec = NULL;
+
+	
+	pFormatCtx = avformat_alloc_context();
+	//Guess format  
+	fmt = av_guess_format("mjpeg", NULL, NULL);
+	if (fmt == NULL)
+	{
+		ret = -1;
+		LOGE<<"av_guess_format fail.";
+		return -1;
+	}
+	pFormatCtx->oformat = fmt;
+	//Output URL  
+	if (avio_open(&pFormatCtx->pb, filename.c_str(), AVIO_FLAG_READ_WRITE) < 0)
+	{
+		LOGE<<"Couldn't open output file.";
+		return -1;
+	}
+	//Method 2. More simple  but will crash  when wirte_frame. don't konw why
+	/*LOGI << "avformat_alloc_output_context2 start filename = " << filename;
+	ret = avformat_alloc_output_context2(&pFormatCtx, NULL, "mjpeg", filename.c_str());
+	if (ret< 0)
+	{
+	LOGE << "avformat_alloc_output_context2 failed";
+	return -1;
+	}*/
+	//fmt = pFormatCtx->oformat;
+
+	video_st = avformat_new_stream(pFormatCtx, pCodec);
+	if (video_st == NULL)
+	{
+		return -1;
+	}
+	pCodecCtx = video_st->codec;
+	pCodecCtx->codec_id = fmt->video_codec;
+	pCodecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
+	pCodecCtx->pix_fmt = AV_PIX_FMT_YUVJ420P;
+
+	pCodecCtx->width = frame->width;
+	pCodecCtx->height = frame->height;
+
+	pCodecCtx->time_base.num = 1;
+	pCodecCtx->time_base.den = 25;
+	//输出格式信息
+	//av_dump_format(pFormatCtx, 0, filename.c_str(), 1);
+
+	pCodec = avcodec_find_encoder(pCodecCtx->codec_id);
+	if (!pCodec)
+	{
+		LOGE<<"cann't find image encoder！";
+		return -1;
+	}
+
+	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0)
+	{
+		LOGE<<"cann't open encoder！";
+		return -1;
+	}
+
+
+	int nRet = avformat_write_header(pFormatCtx, NULL);
+	if (nRet < 0) {
+		LOGE << "Error occurred when opening output file: ! av_err2str(nRet)";
+		return -1;
+	}
+
+	AVPacket *pkt = av_packet_alloc();
+	int pktsize = avpicture_get_size(pCodecCtx->pix_fmt, pCodecCtx->width, pCodecCtx->height);
+	//av_new_packet(pkt, pktsize);
+
+	int got_picture = 0;
+	//
+
+	ret = avcodec_encode_video2(pCodecCtx, pkt, frame, &got_picture);
+	if (ret < 0)
+	{
+		LOGE<<"encode error！";
+		return -1;
+	}
+	if (got_picture == 1)
+	{
+		pkt->stream_index = video_st->index;
+
+		ret = av_write_frame(pFormatCtx, pkt);
+		if (0 != ret) {
+			LOGE << "av_write_frame failed. av_err2str(nRet)";
+		}
+	}
+	av_free_packet(pkt);
+
+	av_write_trailer(pFormatCtx);
+
+	if (video_st)
+	{
+		avcodec_close(video_st->codec);
+	}
+	avio_close(pFormatCtx->pb);
+	avformat_free_context(pFormatCtx);
+	LOGI << "SaveToFile end";
+
+	return 0;
+}
+
 double CSVPlayer::get_master_clock()
 {
 	double interval;
@@ -1382,7 +1507,6 @@ double CSVPlayer::synchronize_video(AVFrame *src_frame, double pts)
 
 	// update the video clock
 	frame_delay = av_q2d(m_video_stream->codec->time_base);
-	//LOGD("pts time_base:%d %d frame_delay:%lf", m_video_stream->codec->time_base.den, m_video_stream->codec->time_base.num, frame_delay);
 	// if we are repeating a frame, adjust clock accordingly
 	frame_delay += src_frame->repeat_pict * (frame_delay * 0.5);
 	m_video_clock += frame_delay;
@@ -1469,7 +1593,7 @@ int CSVPlayer::startPlayer()
 {
 	if (isPlaying())
 	{
-		LOGW << "is in playing new url = %s old url = %s" << m_url << m_url;
+		LOGW << "is in playing new url =  old url = " << m_url << m_url;
 		return 0;
 	}
 
@@ -1532,8 +1656,10 @@ int CSVPlayer::resetPlayer()
 	return 0;
 }
 
-int CSVPlayer::captureImage()
+int CSVPlayer::captureImage(const std::string& imagepath)
 {
+	m_NeedSaveToFile = true;
+	m_CaptureFilename = imagepath;
 	return 0;
 }
 
