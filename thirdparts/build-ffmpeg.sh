@@ -66,6 +66,8 @@ echo "****************** show options end ******************"
 	
 function build ()
 {
+#--enable-muxer=apng 
+#--enable-encoder=apng 
 show_options
 cd ffmpeg
 chmod +x configure *.sh
@@ -97,6 +99,7 @@ ${CFG_FLAGS} \
 --enable-decoder=h264 \
 --enable-decoder=mpeg4 \
 --enable-decoder=aac \
+--enable-encoder=mjpeg \
 \
 --disable-demuxers \
 --enable-demuxer=flv \
@@ -104,6 +107,7 @@ ${CFG_FLAGS} \
 \
 --disable-muxers \
 --enable-muxer=flv \
+--enable-muxer=mjpeg \
  \
 --enable-protocol=rtmp \
 --enable-protocol=http \
