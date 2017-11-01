@@ -39,6 +39,10 @@ public class SMediaPlayer {
     {
         mPlayer.setAudioPlayerType(type);
     }
+    public void setShowMode(int mode)
+    {
+        mRender.setShowMode(mode);
+    }
     public int startPlayer()
     {
         return mPlayer.startPlayer();
@@ -95,10 +99,11 @@ public class SMediaPlayer {
     }
     public void destroyPlayer()
     {
-        mRender.destroyRender();
-        mRender = null;
+
        mPlayer.destroyPlayer();
         mPlayer = null;
+        mRender.destroyRender();
+        mRender = null;
     }
     public void setEventlisten(PlayerEventListener el)
     {

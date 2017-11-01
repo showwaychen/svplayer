@@ -21,6 +21,7 @@ public class NativeRender implements GlRenderThread.GLRenderer {
     public native int nativeRenderDeinit();
     public native int nativeRenderResize(int width, int height);
     public native int  nativeRenderFrame();
+    public native void  nativeSetShowMode(int mode);
     public native void  nativeDestroy();
     public long getNativeObject()
     {
@@ -34,7 +35,14 @@ public class NativeRender implements GlRenderThread.GLRenderer {
     {
 
     }
-
+    public void setShowMode(int mode)
+    {
+        if (mode != PlayerConstants.kShowModeAspectAuto && mode != PlayerConstants.kShowModeFill)
+        {
+            return ;
+        }
+        nativeSetShowMode(mode);
+    }
     public void requestResize(int width, int height)
     {
         mGlRenderThread.requestResize(width, height);

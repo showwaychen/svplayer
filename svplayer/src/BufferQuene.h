@@ -16,12 +16,14 @@ protected:
 	rtc::Event m_readableevent;
 	rtc::Event m_writeableevent;
 
-	bool m_enable = true;
+	bool m_bWriteEnable = true;
+	//bool m_enable = true;
+	bool m_bReadEnable = true;
 public:
 	CBufferQuene() :m_readableevent(false, false),
 		m_writeableevent(false, false)
 	{
-		m_enable = true;
+		m_bReadEnable = m_bWriteEnable = true;
 	}
 	void SetMaxCount(int count)
 	{
@@ -29,9 +31,9 @@ public:
 	}
 	bool PushData(T indata, bool block = false)
 	{
-		if (!m_enable)
+		if (!m_bWriteEnable)
 		{
-			return m_enable;
+			return m_bWriteEnable;
 		}
 		bool lpushok = false;
 		do 
@@ -46,20 +48,24 @@ public:
 			m_sect.Leave();
 			if (!lpushok && block)
 			{
+				if (!m_bReadEnable)
+				{
+					break;
+				}
 				m_writeableevent.Wait(rtc::Event::kForever);
 			}
 			else
 			{
 				break;
 			}
-		} while (!lpushok && m_enable);
+		} while (!lpushok && m_bWriteEnable);
 		return lpushok;
 	}
 	bool PullData(T* outdata, bool block = false)
 	{
-		if (!m_enable)
+		if (!m_bReadEnable)
 		{
-			return m_enable;
+			return m_bReadEnable;
 		}
 		bool bgotdata = false;
 		do 
@@ -83,6 +89,10 @@ public:
 			{
 				if (block)
 				{
+					if (!m_bWriteEnable)
+					{
+						break;
+					}
 					m_readableevent.Wait(rtc::Event::kForever);
 				}
 				else
@@ -94,7 +104,7 @@ public:
 			{
 				break;
 			}
-		} while (!bgotdata && m_enable);
+		} while (!bgotdata && m_bReadEnable);
 		return bgotdata;
 	}
 	bool Clear()
@@ -124,11 +134,28 @@ public:
 		rtc::CritScope autolock(&m_sect);
 		return m_bufflist.size(); //?????
 	}
-
+	void SetPushEnable(bool enable)
+	{
+		m_bWriteEnable = enable;
+		if (!m_bWriteEnable)
+		{
+			m_readableevent.Set();
+			m_writeableevent.Set();
+		}
+	}
+	void SetPullEnable(bool enable)
+	{
+		m_bReadEnable = enable;
+		if (!m_bReadEnable)
+		{
+			m_readableevent.Set();
+			m_writeableevent.Set();
+		}
+	}
 	void SetEnable(bool bEnable)
 	{
-		m_enable = bEnable;
-		if (!m_enable)
+		m_bReadEnable = m_bWriteEnable = bEnable;
+		if (!bEnable)
 		{
 			m_readableevent.Set();
 			m_writeableevent.Set();

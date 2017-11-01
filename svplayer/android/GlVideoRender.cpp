@@ -13,6 +13,8 @@ static JNINativeMethod ls_nm[] = {
 	&CGLVideoRender::nativeRenderFrame) },
 	{ "nativeRenderResize", "(II)I", reinterpret_cast<void*>(
 	&CGLVideoRender::nativeRenderResize) },
+	{ "nativeSetShowMode", "(I)V", reinterpret_cast<void*>(
+	&CGLVideoRender::nativeSetShowMode) },
 	{ "nativeDestroy", "()V", reinterpret_cast<void*>(
 	&CGLVideoRender::nativeDestroy) }
 };
@@ -21,10 +23,11 @@ CRegisterNativeM CGLVideoRender::s_registernm("cxw/cn/svplayer/NativeRender", ls
 const char  CGLVideoRender::g_VertexShaderStr[] =
 "attribute vec4 vPosition;    \n"
 "attribute vec2 a_texCoord;   \n"
+"uniform mat4 vMatrix;\n"
 "varying vec2 tc;     \n"
 "void main()                  \n"
 "{                            \n"
-"   gl_Position = vPosition;  \n"
+"   gl_Position = vPosition*vMatrix;  \n"
 "   tc = a_texCoord;  \n"
 "}                            \n";
 
@@ -48,6 +51,11 @@ const char CGLVideoRender::g_FragmentShaderStr[] =
 "gl_FragColor = vec4(r,g,b, 1.0); \n"
 "}                                            \n";
 
+
+float CGLVideoRender::g_DefaultMatrix[] = { 1.0f, 0.0f, 0.0f, 0.0f,
+										0.0f, 1.0f, 0.0f, 0.0f,
+										0.0f, 0.0f, 1.0f, 0.0f,
+										0.0f, 0.0f, 0.0f, 1.0f };
 
 void CGLVideoRender::OnFragmentUniform(uint8_t *pSrcBuffer, int nWidth, int nHeight)
 {
@@ -104,85 +112,68 @@ void CGLVideoRender::OnFragmentDelete()
 	glDeleteTextures(1, &m_vTexture);
 }
 
-GLuint CGLVideoRender::LoadShader(GLenum type, const char *shaderSrc)
+
+
+
+void CGLVideoRender::SetPositionMatrix()
 {
-	GLuint shader;
-	GLint compiled;
-
-	// Create the shader object
-	shader = glCreateShader(type);
-
-	if (!shader) {
-		return 0;
+	float matrix[] = { 1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f };
+	LOGD << m_SrcWidth << "  " << m_SrcHeight << "  " << m_ShowWidth << "  " << m_ShowHeight;
+	if (m_SrcWidth == 0 || m_SrcHeight == 0 || m_nPositionMatrix == -1 || m_ShowWidth == 0 || m_ShowHeight == 0 || m_eShowMode == kShowModeFill)
+	{
+		glUniformMatrix4fv(m_nPositionMatrix, 1, false, g_DefaultMatrix);
 	}
+	else
+	{
+		float xfinalratio = 1.0f;
+		float yfinalratio = 1.0f;
+		if (m_eShowMode == kShowModeAspectAuto)
+		{
+			float wratio = (float)m_ShowWidth  / m_SrcWidth ;
+			float hratio = (float)m_ShowHeight / m_SrcHeight ;
+			LOGD << "wratio = " << wratio << "  hratio = " << hratio;
+			if (wratio > hratio)
+			{
+				xfinalratio = (float)hratio / wratio;
+			}
+			else
+			{
+				yfinalratio = (float)wratio / hratio;
+			}
+		}
+		else if (m_eShowMode == kShowModeAspectFill)
+		{
 
-	// Load the shader source
-	glShaderSource(shader, 1, &shaderSrc, NULL);
+		}
+		else if (m_eShowMode == kShowModeAspectFit)
+		{
 
-	//Compile the shader
-	glCompileShader(shader);
-
-	// Check the compile status
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-
-	if (!compiled) {
-		glDeleteShader(shader);
-		return 0;
+		}
+		matrix[0] = xfinalratio;
+		matrix[5] = yfinalratio;
+		glUniformMatrix4fv(m_nPositionMatrix, 1, false, matrix);
 	}
-
-	return shader;
-}
-
-GLuint CGLVideoRender::CreateProgram(GLuint vertexShader, GLuint fragmentShader)
-{
-	GLuint programObject;
-	GLint linked;
-
-	// Create the program object
-	programObject = glCreateProgram();
-
-	if (!programObject) {
-		return 0;
-	}
-
-	glAttachShader(programObject, vertexShader);
-	glAttachShader(programObject, fragmentShader);
-
-	// Link the program
-	glLinkProgram(programObject);
-
-	// Check the link status
-	glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
-
-	if (!linked) {
-		glDeleteProgram(programObject);
-		return 0;
-	}
-
-	return programObject;
 }
 
 int CGLVideoRender::renderInit()
 {
 	glClearColor(0, 0, 0, 1);
-	m_VertexShader = LoadShader(GL_VERTEX_SHADER, g_VertexShaderStr);
-	m_FragmentShader = LoadShader(GL_FRAGMENT_SHADER, g_FragmentShaderStr);
-	m_Program = CreateProgram(m_VertexShader, m_FragmentShader);
-	glDetachShader(m_Program, m_VertexShader);
-	glDetachShader(m_Program, m_FragmentShader);
-	glDeleteShader(m_VertexShader);
-	glDeleteShader(m_FragmentShader);
-	m_vPositionHandle = glGetAttribLocation(m_Program, "vPosition");
-	m_vTexPos = glGetAttribLocation(m_Program, "a_texCoord");
-	m_yLoc = glGetUniformLocation(m_Program, "tex_y");
-	m_uLoc = glGetUniformLocation(m_Program, "tex_u");
-	m_vLoc = glGetUniformLocation(m_Program, "tex_v");
+	m_cGlShader = new CGlShader(g_VertexShaderStr, g_FragmentShaderStr);
+	m_yLoc = m_cGlShader->GetUniformLocation("tex_y");
+	m_uLoc = m_cGlShader->GetUniformLocation("tex_u");
+	m_vLoc = m_cGlShader->GetUniformLocation("tex_v");
+	m_nPositionMatrix = m_cGlShader->GetUniformLocation("vMatrix");
 	return 0;
 }
 
 int CGLVideoRender::renderUninit()
 {
-	glDeleteProgram(m_Program);
+	m_cGlShader->Release();
+	delete m_cGlShader;
+	m_cGlShader = NULL;
 	return 0;
 }
 
@@ -205,13 +196,12 @@ int CGLVideoRender::renderFrame()
 	glClearColor(0, 0, 0, 1.0f);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(m_Program);
+	m_cGlShader->UseProgram();
 	float texs[] = { 0, 1, 0, 0, 1, 1, 1, 0 };
-	glVertexAttribPointer(m_vPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, vertices);
-	glEnableVertexAttribArray(m_vPositionHandle);
-	glVertexAttribPointer(m_vTexPos, 2, GL_FLOAT, GL_FALSE, 0, texs);
-	glEnableVertexAttribArray(m_vTexPos);
-
+	m_cGlShader->SetVertexAttribArray("vPosition", 2, vertices);
+	SetPositionMatrix();
+	m_cGlShader->SetVertexAttribArray("a_texCoord", 2, texs);
+	
 	pthread_mutex_lock(&m_imgdata_mutex);
 	OnFragmentUniform(m_ImageData, m_SrcWidth, m_SrcHeight);
 	pthread_mutex_unlock(&m_imgdata_mutex);
@@ -291,6 +281,15 @@ jint JNICALL CGLVideoRender::nativeRenderFrame(JNIEnv *env, jobject thiz)
 	LOG(LS_INFO) << "nativeRenderFrame end";
 
 	return -1;
+}
+
+void JNICALL CGLVideoRender::nativeSetShowMode(JNIEnv *env, jobject thiz, jint mode)
+{
+	CGLVideoRender *instance = GetInst(env, thiz);
+	if (instance != NULL)
+	{
+		instance->SetShowMode((ShowMode)mode);
+	}
 }
 
 void JNICALL CGLVideoRender::nativeDestroy(JNIEnv *env, jobject thiz)

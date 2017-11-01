@@ -114,7 +114,7 @@ ${CFG_FLAGS} \
 --enable-protocol=file \
 \
 --disable-zlib \
---disable-bzlib \
+--enable-bzlib \
 \
 --cc=$PREBUILT/bin/${CROSS_PREFIX}-gcc \
 --cross-prefix=$PREBUILT/bin/${CROSS_PREFIX}- \

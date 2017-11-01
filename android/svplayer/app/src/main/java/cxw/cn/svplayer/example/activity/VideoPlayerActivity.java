@@ -30,6 +30,8 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -151,7 +153,7 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
     }
     void initPlayer()
     {
-        CommonSetting.nativeToggleFFmpegLog(true);
+        CommonSetting.nativeToggleFFmpegLog(false);
         CommonSetting.nativeSetLogLevel(PlayerConstants.LS_SENSITIVE);
         mRenderView = createRenderView(2);
         mRenderView.addRenderCallback(this);
@@ -160,6 +162,7 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
         mPlayer.setEventlisten(this);
         mPlayer.setUrl(mPlayUrl);
         mPlayer.setAudioPlayerType(PlayerConstants.AudioPlayType_AudioTrack);
+        mPlayer.setShowMode(PlayerConstants.kShowModeAspectAuto);
         mPlayer.startPlayer();
     }
 
@@ -235,7 +238,7 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
     String mCaptureFilename;
     @Override
     public int captureImage() {
-        mCaptureFilename = Environment.getExternalStorageDirectory() + "/svplayercapture.jpg";
+        mCaptureFilename = Environment.getExternalStorageDirectory() + "/svplayercapture.jpeg";
         return mPlayer.captureImage(mCaptureFilename);
     }
 
@@ -280,6 +283,8 @@ public class VideoPlayerActivity extends AppCompatActivity implements View.OnCli
     @Override
     public void onSurfaceCreated(@NonNull IRenderView.ISurfaceHolder holder, int width, int height) {
         mPlayer.setDisplay(holder.getSurface());
+        mPlayer.resizeDisplay(width, height);
+
     }
 
     @Override

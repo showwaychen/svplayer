@@ -268,7 +268,7 @@ connect:
 		state = kStateStoppedWithEOF;
 		NotifyEvent(PE_StopWithEof);
 		error = m_error = kErrorNone;
-		m_eof = 1;
+		m_eof = true;
 	}
 	if (kStateReconnecting == state) {
 		LOGI<<"other thread call reconnect";
@@ -277,8 +277,8 @@ connect:
 			goto reconnect;
 		}
 	}
-	m_audiopktq.SetEnable(false);
-	m_videopktq.SetEnable(false);
+	//m_audiopktq.SetEnable(false);
+	//m_videopktq.SetEnable(false);
 	StopWaitClean();
 	if (kStateStoppedWithError == state) {
 	}
@@ -509,7 +509,8 @@ fail:
 	}
 end:
 	m_videopktq.SetEnable(false);
-	m_videoframeq.SetEnable(false);
+	m_videoframeq.SetPushEnable(false);
+	//m_videoframeq.SetEnable(false);
 	av_free_packet(&pkt);
 	av_frame_free(&frame);
 	av_frame_free(&scale_frame);
@@ -990,6 +991,7 @@ bool CSVPlayer::onVideoRender()
 	} // while (1)
 
 	m_videoframeq.SetEnable(false);
+	m_videoframeq.Clear();
 	av_freep(&buf);
 	return false;
 }
@@ -1516,9 +1518,9 @@ double CSVPlayer::synchronize_video(AVFrame *src_frame, double pts)
 void CSVPlayer::StopWaitClean()
 {
 	LOGD << "StopWaitClean 1";
-	m_audiopktq.SetEnable(false);
-	m_videopktq.SetEnable(false);
-	m_videoframeq.SetEnable(false);
+	m_audiopktq.SetPushEnable(false);
+	m_videopktq.SetPushEnable(false);
+	//m_videoframeq.SetEnable(false);
 	m_audioDecodeThread.Stop();
 	LOGD << "m_audioDecodeThread STOPED";
 	m_videoDecodeThread.Stop();
@@ -1526,6 +1528,7 @@ void CSVPlayer::StopWaitClean()
 	m_videoRefreshThread.Stop();
 	LOGD << "m_videoRefreshThread STOPED";
 	LOGD << "StopWaitClean 2";
+	setState(kStateNone, kErrorNone);
 	if (m_audio_ok)
 	{
 		LOGD << "audio free";

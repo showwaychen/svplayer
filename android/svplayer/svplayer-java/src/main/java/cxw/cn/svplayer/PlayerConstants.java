@@ -38,4 +38,8 @@ public class PlayerConstants {
     public  static final int LS_ERROR = 4;
     public  static final int LS_NONE = 5;
 
+    //show mode
+    public static final  int kShowModeFill = 2;
+    public static final  int kShowModeAspectAuto = 3;
+
 }

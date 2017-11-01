@@ -5,6 +5,7 @@
 #include "../src/VideoRenderBase.h"
 #include "GLES2/gl2.h"
 #include <pthread.h>
+#include "GlShader.h"
 class CGLVideoRender : public VideoRenderBase
 {
 	static CRegisterNativeM s_registernm;
@@ -15,16 +16,18 @@ class CGLVideoRender : public VideoRenderBase
 	jmethodID m_javaRequestRender;
 	//opengl es 
 
+	CGlShader* m_cGlShader;
 	GLuint m_VertexShader;
 	GLuint m_FragmentShader;
 	GLuint m_Program;
-	GLuint m_vPositionHandle, m_vTexPos;
+	GLuint m_nPositionMatrix;
 	GLint m_yLoc, m_uLoc, m_vLoc;
 	GLuint m_yTexture, m_uTexture, m_vTexture;
 
 	static const char g_VertexShaderStr[];
 
 	static const char g_FragmentShaderStr[];
+	static float g_DefaultMatrix[];
 
 
 	pthread_mutex_t m_imgdata_mutex;
@@ -33,12 +36,9 @@ class CGLVideoRender : public VideoRenderBase
 
 	void OnFragmentUniform(uint8_t *pSrcBuffer, int nWidth, int nHeight);
 	void OnFragmentDelete();
-	GLuint LoadShader(GLenum type, const char *shaderSrc);
-	GLuint CreateProgram(GLuint vertexShader, GLuint fragmentShader);
-
-	void OnGLESRender(float *vtTri, char *pSrcBuffer, int nWidth, int nHeight);
 
 
+	void SetPositionMatrix();
 protected:
 	int renderInit();
 	int renderUninit();
@@ -51,6 +51,7 @@ public:
 	static jint JNICALL nativeRenderDeinit(JNIEnv *env, jobject thiz);
 	static jint JNICALL nativeRenderResize(JNIEnv *env, jobject thiz, jint width, jint height);
 	static jint JNICALL nativeRenderFrame(JNIEnv *env, jobject thiz);
+	static void JNICALL nativeSetShowMode(JNIEnv *env, jobject thiz, jint mode);
 	static void JNICALL nativeDestroy(JNIEnv *env, jobject thiz);
 
 	CGLVideoRender(JNIEnv* env, jobject thiz);

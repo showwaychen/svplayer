@@ -238,6 +238,7 @@ public:
 
 	bool isPlaying()
 	{
+		LOGD << "curent state " << m_state;
 		if (m_state < kStateBuffering || (m_state < kStateRecording && m_state >= kStateReconnecting))
 		{
 			LOGW << "not in playing current state = "<<m_state;
